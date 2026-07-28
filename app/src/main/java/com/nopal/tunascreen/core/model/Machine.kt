@@ -1,0 +1,68 @@
+package com.nopal.tunascreen.core.model
+
+import kotlinx.serialization.Serializable
+
+/** `type` que devuelve NOPAL: "printer" | "laser" | "cnc" -- láser y CNC son
+ * el mismo hardware/servicio del lado NOPAL (laser_service.py), distintos
+ * solo por su campo `kind`; acá se modelan como valores de `type` para que
+ * la UI decida el layout (jog XY vs. spindle) sin necesitar saber eso. */
+@Serializable
+enum class MachineType {
+    @kotlinx.serialization.SerialName("printer") PRINTER,
+    @kotlinx.serialization.SerialName("laser") LASER,
+    @kotlinx.serialization.SerialName("cnc") CNC,
+}
+
+@Serializable
+data class TempPair(
+    val current: Double? = null,
+    val target: Double? = null,
+)
+
+@Serializable
+data class Position(
+    val x: Double? = null,
+    val y: Double? = null,
+    val z: Double? = null,
+)
+
+@Serializable
+data class JobProgress(
+    val filename: String? = null,
+    val percent: Int? = null,
+    @kotlinx.serialization.SerialName("elapsed_s") val elapsedS: Long? = null,
+    @kotlinx.serialization.SerialName("remaining_s") val remainingS: Long? = null,
+)
+
+/** Vocabulario normalizado por tunascreen_service.py: idle/printing/paused/
+ * completed/cancelled/error/offline/unknown -- una sola marca de estado para
+ * las 5 marcas de impresora + láser/CNC. */
+@Serializable
+data class MachineStatus(
+    val state: String = "unknown",
+    val hotend: TempPair? = null,
+    val bed: TempPair? = null,
+    val position: Position? = null,
+    val feed: Double? = null,
+    val speed: Double? = null,
+    @kotlinx.serialization.SerialName("laser_power") val laserPower: Double? = null,
+    @kotlinx.serialization.SerialName("spindle_rpm") val spindleRpm: Double? = null,
+    @kotlinx.serialization.SerialName("air_assist") val airAssist: Boolean? = null,
+    val coolant: Boolean? = null,
+    val job: JobProgress? = null,
+)
+
+@Serializable
+data class Machine(
+    val id: String,
+    val name: String,
+    val type: MachineType,
+    val driver: String = "unknown",
+    val online: Boolean = false,
+    val capabilities: List<Capability> = emptyList(),
+    val actions: List<String> = emptyList(),
+    val status: MachineStatus = MachineStatus(),
+) {
+    fun has(capability: Capability): Boolean = capabilities.contains(capability)
+    fun supports(action: String): Boolean = online && actions.contains(action)
+}

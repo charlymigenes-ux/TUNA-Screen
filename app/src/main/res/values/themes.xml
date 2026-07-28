@@ -1,0 +1,11 @@
+<resources>
+    <!-- Solo la ventana/splash pre-Compose necesita este theme XML - el
+         resto de la UI se define en Compose (ver ui/theme/Theme.kt). -->
+    <style name="Theme.TunaScreen" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:statusBarColor">@android:color/black</item>
+        <item name="android:navigationBarColor">@android:color/black</item>
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+</resources>

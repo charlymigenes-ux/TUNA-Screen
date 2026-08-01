@@ -3,6 +3,8 @@ package com.nopal.tunascreen.core.repository
 import com.nopal.tunascreen.core.auth.TokenStore
 import com.nopal.tunascreen.core.model.ActionRequest
 import com.nopal.tunascreen.core.model.Machine
+import com.nopal.tunascreen.core.model.MachineMacro
+import com.nopal.tunascreen.core.model.ConsoleMessage
 import com.nopal.tunascreen.core.model.PairConfirmRequest
 import com.nopal.tunascreen.core.model.PairConfirmResponse
 import com.nopal.tunascreen.core.model.ServerInfo
@@ -120,6 +122,12 @@ class NopalRepository @Inject constructor(
             check(response.success) { "NOPAL rechazó la acción $action" }
             true
         }
+
+    suspend fun getMacros(machineId: String): Result<List<MachineMacro>> =
+        runCatching { api.getMacros(machineId).macros }
+
+    suspend fun getConsole(machineId: String, count: Int = 50): Result<List<ConsoleMessage>> =
+        runCatching { api.getConsole(machineId, count).messages }
 
     suspend fun forgetPairing() {
         stop()

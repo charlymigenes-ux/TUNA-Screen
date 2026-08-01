@@ -38,6 +38,12 @@ data class JobProgress(
  * completed/cancelled/error/offline/unknown -- una sola marca de estado para
  * las 5 marcas de impresora + láser/CNC. */
 @Serializable
+data class MachineCamera(
+    @kotlinx.serialization.SerialName("stream_url") val streamUrl: String? = null,
+    val name: String? = null,
+)
+
+@Serializable
 data class MachineStatus(
     val state: String = "unknown",
     val hotend: TempPair? = null,
@@ -49,6 +55,11 @@ data class MachineStatus(
     @kotlinx.serialization.SerialName("spindle_rpm") val spindleRpm: Double? = null,
     @kotlinx.serialization.SerialName("air_assist") val airAssist: Boolean? = null,
     val coolant: Boolean? = null,
+    @kotlinx.serialization.SerialName("fan_percent") val fanPercent: Double? = null,
+    @kotlinx.serialization.SerialName("speed_factor") val speedFactor: Double? = null,
+    @kotlinx.serialization.SerialName("flow_factor") val flowFactor: Double? = null,
+    @kotlinx.serialization.SerialName("z_offset") val zOffset: Double? = null,
+    val camera: MachineCamera? = null,
     val job: JobProgress? = null,
 )
 

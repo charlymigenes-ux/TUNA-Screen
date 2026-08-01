@@ -56,3 +56,26 @@ data class MachinesResponse(
     @kotlinx.serialization.SerialName("api_version") val apiVersion: Int = 1,
     val machines: List<Machine> = emptyList(),
 )
+
+@Serializable
+data class MachineMacro(
+    val name: String,
+    val description: String = "",
+)
+
+@Serializable
+data class MacrosResponse(
+    val macros: List<MachineMacro> = emptyList(),
+)
+
+@Serializable
+data class ConsoleMessage(
+    val message: String = "",
+    val type: String? = null,
+    val time: Double? = null,
+)
+
+@Serializable
+data class ConsoleResponse(
+    val messages: List<ConsoleMessage> = emptyList(),
+)

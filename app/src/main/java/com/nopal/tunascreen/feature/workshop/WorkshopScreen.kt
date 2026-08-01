@@ -120,6 +120,17 @@ fun WorkshopScreen(
                     }
                 }
             }
+        } else if (displayProfile in setOf(DisplayProfile.WORKSHOP_10, DisplayProfile.DESKTOP)) {
+            Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+                WorkshopHomeDashboard(
+                    machines = machines,
+                    connection = connection,
+                    onMachineSelected = onMachineSelected,
+                    onNavigate = onNavigate,
+                    onPause = viewModel::pause,
+                    onCancel = viewModel::cancel,
+                )
+            }
         } else {
             Row(
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp, vertical = 8.dp),

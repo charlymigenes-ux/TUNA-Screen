@@ -299,6 +299,14 @@ private fun PrinterMachineContent(machine: Machine, onCommand: (MachineCommand) 
                 target = "${machine.status.bed?.target?.toInt() ?: "--"}",
                 icon = Icons.Default.HotTub,
             )
+            if (machine.has(Capability.FAN)) {
+                MachineMetricCard(
+                    "VENTILADOR",
+                    machine.status.fanPercent?.toInt()?.toString() ?: "--",
+                    "%",
+                    Icons.Default.Air,
+                )
+            }
         },
         rightTitle = "ACCIONES DE IMPRESIÓN",
         right = {
@@ -309,6 +317,30 @@ private fun PrinterMachineContent(machine: Machine, onCommand: (MachineCommand) 
             SupportedAction(
                 machine, "extrude", "Cargar o retraer filamento",
                 Icons.Default.KeyboardDoubleArrowDown, MachineCommand.EXTRUDE, onCommand,
+            )
+            SupportedAction(
+                machine, "set_fan", "Ventilador de capa",
+                Icons.Default.Air, MachineCommand.FAN, onCommand,
+            )
+            SupportedAction(
+                machine, "set_speed_factor", "Velocidad ${machine.status.speedFactor?.toInt() ?: 100}%",
+                Icons.Default.Speed, MachineCommand.SPEED_FACTOR, onCommand,
+            )
+            SupportedAction(
+                machine, "set_flow_factor", "Flujo ${machine.status.flowFactor?.toInt() ?: 100}%",
+                Icons.Default.Tune, MachineCommand.FLOW_FACTOR, onCommand,
+            )
+            SupportedAction(
+                machine, "set_z_offset", "Offset Z ${"%.2f".format(machine.status.zOffset ?: 0.0)} mm",
+                Icons.Default.KeyboardArrowDown, MachineCommand.Z_OFFSET, onCommand,
+            )
+            SupportedAction(
+                machine, "run_macro", "Macros Klipper",
+                Icons.Default.FlashOn, MachineCommand.MACROS, onCommand,
+            )
+            SupportedAction(
+                machine, "send_console_command", "Consola G-code",
+                Icons.Default.Tune, MachineCommand.CONSOLE, onCommand,
             )
         },
     )

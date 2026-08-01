@@ -4,6 +4,9 @@ Cliente Android de NOPAL construido con Kotlin y Jetpack Compose. La app es
 la interfaz táctil; NOPAL sigue siendo el servidor que integra Klipper,
 Marlin, GRBL, Bambu, Elegoo, FlashForge, cámaras y accesorios.
 
+<img width="1586" height="992" alt="tunascreen" src="https://github.com/user-attachments/assets/b5341e6b-d3d8-4500-bce1-5f666bdeed59" />
+
+
 TUNA-Screen nunca se conecta directamente al hardware. Toda lectura y acción
 pasa por `/api/tunascreen/*` y `/ws/tunascreen`.
 

@@ -55,6 +55,7 @@ import com.nopal.tunascreen.ui.theme.NopalSurfaceElevated
 import com.nopal.tunascreen.ui.theme.NopalTextPrimary
 import com.nopal.tunascreen.ui.theme.NopalTextSecondary
 import com.nopal.tunascreen.ui.theme.NopalWarning
+import com.nopal.tunascreen.feature.workshop.components.CameraStreamView
 
 @Composable
 internal fun WorkshopHomeDashboard(
@@ -64,6 +65,8 @@ internal fun WorkshopHomeDashboard(
     onNavigate: (String) -> Unit,
     onPause: (String) -> Unit,
     onCancel: (String) -> Unit,
+    cameraBaseUrl: String?,
+    cameraToken: String?,
 ) {
     val activeMachine = remember(machines) {
         machines.firstOrNull { it.status.state in setOf("printing", "running", "working", "paused") }
@@ -92,6 +95,8 @@ internal fun WorkshopHomeDashboard(
             CameraOverview(
                 machine = machines.firstOrNull { it.has(Capability.CAMERA) },
                 onOpen = { onNavigate("cameras") },
+                baseUrl = cameraBaseUrl,
+                token = cameraToken,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -207,14 +212,20 @@ private fun ActiveJobPanel(
 }
 
 @Composable
-private fun CameraOverview(machine: Machine?, onOpen: () -> Unit, modifier: Modifier) {
+private fun CameraOverview(
+    machine: Machine?,
+    onOpen: () -> Unit,
+    baseUrl: String?,
+    token: String?,
+    modifier: Modifier,
+) {
     DashboardPanel("CÁMARA", modifier) {
-        Box(
-            modifier = Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(8.dp)).background(NopalSurfaceElevated),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Default.Videocam, null, tint = NopalGreen, modifier = Modifier.size(52.dp))
-        }
+        CameraStreamView(
+            streamUrl = machine?.status?.camera?.streamUrl,
+            baseUrl = baseUrl,
+            token = token,
+            modifier = Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(8.dp)),
+        )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(8.dp).clip(CircleShape).background(if (machine?.online == true) NopalGreen else NopalDanger))
             Text("  ${machine?.status?.camera?.name ?: machine?.name ?: "Sin cámara vinculada"}", color = NopalTextPrimary, modifier = Modifier.weight(1f))

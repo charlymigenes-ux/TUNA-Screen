@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
@@ -43,7 +44,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.nopal.tunascreen.core.model.Capability
 import com.nopal.tunascreen.core.model.Machine
 import com.nopal.tunascreen.core.model.MachineType
-import com.nopal.tunascreen.feature.workshop.components.CameraCard
+import com.nopal.tunascreen.feature.workshop.components.CameraStreamView
 import com.nopal.tunascreen.feature.workshop.components.MachineListCard
 import com.nopal.tunascreen.feature.workshop.components.WorkshopBottomNav
 import com.nopal.tunascreen.feature.workshop.components.WorkshopTopBar
@@ -122,6 +123,7 @@ fun CamerasScreen(
 ) {
     val machines by viewModel.machines.collectAsState()
     val connection by viewModel.connectionState.collectAsState()
+    val session by viewModel.session.collectAsState()
     val cameraMachines = remember(machines) { machines.filter { it.has(Capability.CAMERA) } }
 
     DashboardScaffold(
@@ -140,8 +142,8 @@ fun CamerasScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
-                    text = "Esta versión muestra las máquinas que NOPAL declara con cámara. " +
-                        "El video aparecerá cuando la API proporcione la URL de transmisión.",
+                    text = "Transmisiones vinculadas por NOPAL. Las cámaras externas se abren " +
+                        "sin compartir el token del servidor.",
                     color = NopalTextSecondary,
                     modifier = Modifier.padding(12.dp),
                     style = MaterialTheme.typography.bodyMedium,
@@ -159,11 +161,28 @@ fun CamerasScreen(
                     contentPadding = PaddingValues(bottom = 16.dp),
                 ) {
                     items(cameraMachines, key = { it.id }) { machine ->
-                        CameraCard(
-                            machineName = machine.name,
-                            online = machine.online,
+                        Surface(
+                            color = NopalSurface,
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
                             modifier = Modifier.fillMaxWidth(),
-                        )
+                        ) {
+                            Column(modifier = Modifier.padding(8.dp)) {
+                                CameraStreamView(
+                                    streamUrl = machine.status.camera?.streamUrl,
+                                    baseUrl = session.baseUrl,
+                                    token = session.token,
+                                    modifier = Modifier.fillMaxWidth().height(190.dp)
+                                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(6.dp)),
+                                )
+                                Text(
+                                    text = machine.status.camera?.name ?: machine.name,
+                                    color = NopalTextPrimary,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(top = 8.dp),
+                                )
+                                Text(machine.name, color = NopalTextSecondary)
+                            }
+                        }
                     }
                 }
             }

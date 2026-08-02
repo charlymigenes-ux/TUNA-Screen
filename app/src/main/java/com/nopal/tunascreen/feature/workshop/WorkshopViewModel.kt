@@ -2,6 +2,8 @@ package com.nopal.tunascreen.feature.workshop
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nopal.tunascreen.core.auth.NopalSession
+import com.nopal.tunascreen.core.auth.TokenStore
 import com.nopal.tunascreen.core.model.Machine
 import com.nopal.tunascreen.core.repository.ConnectionState
 import com.nopal.tunascreen.core.repository.NopalRepository
@@ -18,6 +20,7 @@ import javax.inject.Inject
 @HiltViewModel
 class WorkshopViewModel @Inject constructor(
     private val repository: NopalRepository,
+    tokenStore: TokenStore,
 ) : ViewModel() {
 
     val machines: StateFlow<List<Machine>> = repository.machines
@@ -25,6 +28,9 @@ class WorkshopViewModel @Inject constructor(
 
     val connectionState: StateFlow<ConnectionState> = repository.connectionState
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ConnectionState.DISCONNECTED)
+
+    val session: StateFlow<NopalSession> = tokenStore.session
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NopalSession(null, null, null, null))
 
     private val _refreshing = MutableStateFlow(false)
     val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()

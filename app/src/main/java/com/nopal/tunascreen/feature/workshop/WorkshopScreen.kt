@@ -78,6 +78,7 @@ fun WorkshopScreen(
 ) {
     val machines by viewModel.machines.collectAsState()
     val connection by viewModel.connectionState.collectAsState()
+    val session by viewModel.session.collectAsState()
     var filter by remember { mutableStateOf<MachineType?>(null) }
     val onlineCount = remember(machines) { machines.count { it.online } }
     val visibleMachines = remember(machines, filter) {
@@ -129,6 +130,8 @@ fun WorkshopScreen(
                     onNavigate = onNavigate,
                     onPause = viewModel::pause,
                     onCancel = viewModel::cancel,
+                    cameraBaseUrl = session.baseUrl,
+                    cameraToken = session.token,
                 )
             }
         } else {
@@ -305,7 +308,11 @@ private fun CameraStatusRow(machine: Machine) {
             Spacer(modifier = Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(machine.name, color = NopalTextPrimary, fontWeight = FontWeight.Bold)
-                Text("Transmisión pendiente de API", color = NopalTextSecondary, style = MaterialTheme.typography.labelSmall)
+                Text(
+                    machine.status.camera?.name ?: "Cámara vinculada",
+                    color = NopalTextSecondary,
+                    style = MaterialTheme.typography.labelSmall,
+                )
             }
             Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(if (machine.online) NopalGreen else NopalDanger))
         }

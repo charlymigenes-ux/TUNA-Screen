@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
 import javax.inject.Inject
 
 @HiltViewModel
@@ -41,6 +42,16 @@ class WorkshopViewModel @Inject constructor(
             _refreshing.value = true
             repository.refreshOnce()
             _refreshing.value = false
+        }
+    }
+
+    fun pause(machineId: String) = sendAction(machineId, "pause")
+
+    fun cancel(machineId: String) = sendAction(machineId, "cancel")
+
+    private fun sendAction(machineId: String, action: String) {
+        viewModelScope.launch {
+            repository.sendAction(machineId, action, JsonObject(emptyMap()))
         }
     }
 }

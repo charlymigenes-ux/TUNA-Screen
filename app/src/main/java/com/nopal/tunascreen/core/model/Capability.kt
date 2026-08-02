@@ -30,6 +30,12 @@ enum class Capability {
     @SerialName("coolant") COOLANT,
     @SerialName("probe") PROBE,
     @SerialName("limits") LIMITS,
+    @SerialName("fan") FAN,
+    @SerialName("speed_override") SPEED_OVERRIDE,
+    @SerialName("flow_override") FLOW_OVERRIDE,
+    @SerialName("z_offset") Z_OFFSET,
+    @SerialName("macros") MACROS,
+    @SerialName("console") CONSOLE,
 
     /** Capability nueva del lado NOPAL que esta versión de la app todavía no
      * conoce -- kotlinx.serialization con `JsonBuilder.ignoreUnknownKeys`

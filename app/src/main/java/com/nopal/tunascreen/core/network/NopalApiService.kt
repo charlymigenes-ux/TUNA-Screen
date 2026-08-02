@@ -4,6 +4,8 @@ import com.nopal.tunascreen.core.model.ActionRequest
 import com.nopal.tunascreen.core.model.ActionResponse
 import com.nopal.tunascreen.core.model.Machine
 import com.nopal.tunascreen.core.model.MachinesResponse
+import com.nopal.tunascreen.core.model.MacrosResponse
+import com.nopal.tunascreen.core.model.ConsoleResponse
 import com.nopal.tunascreen.core.model.PairConfirmRequest
 import com.nopal.tunascreen.core.model.PairConfirmResponse
 import com.nopal.tunascreen.core.model.ServerInfo
@@ -11,6 +13,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.Query
 import retrofit2.http.Url
 
 /** Espejo 1:1 de backend/api/tunascreen.py -- no agregar acá nada que ese
@@ -36,6 +39,15 @@ interface NopalApiService {
 
     @GET("api/tunascreen/machine/{id}")
     suspend fun getMachine(@Path("id") id: String): Machine
+
+    @GET("api/tunascreen/machine/{id}/macros")
+    suspend fun getMacros(@Path("id") id: String): MacrosResponse
+
+    @GET("api/tunascreen/machine/{id}/console")
+    suspend fun getConsole(
+        @Path("id") id: String,
+        @Query("count") count: Int = 50,
+    ): ConsoleResponse
 
     @POST("api/tunascreen/action")
     suspend fun sendAction(@Body body: ActionRequest): ActionResponse

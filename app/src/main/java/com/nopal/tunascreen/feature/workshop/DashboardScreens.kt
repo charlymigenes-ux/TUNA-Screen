@@ -337,7 +337,7 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun DashboardScaffold(
+internal fun DashboardScaffold(
     title: String,
     selectedTab: String,
     connectionStatus: String,
@@ -370,7 +370,7 @@ private fun MachineFilterChip(label: String, selected: Boolean, onClick: () -> U
 }
 
 @Composable
-private fun EmptyDashboardState(title: String, detail: String) {
+internal fun EmptyDashboardState(title: String, detail: String) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(title, color = NopalTextPrimary, style = MaterialTheme.typography.titleMedium)

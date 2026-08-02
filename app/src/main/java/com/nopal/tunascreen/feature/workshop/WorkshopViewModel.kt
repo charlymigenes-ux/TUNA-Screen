@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.nopal.tunascreen.core.auth.NopalSession
 import com.nopal.tunascreen.core.auth.TokenStore
 import com.nopal.tunascreen.core.model.Machine
+import com.nopal.tunascreen.core.model.AccessoriesResponse
+import com.nopal.tunascreen.core.model.MaterialsResponse
 import com.nopal.tunascreen.core.repository.ConnectionState
 import com.nopal.tunascreen.core.repository.NopalRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,6 +30,12 @@ class WorkshopViewModel @Inject constructor(
 
     val connectionState: StateFlow<ConnectionState> = repository.connectionState
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ConnectionState.DISCONNECTED)
+
+    val materials: StateFlow<MaterialsResponse> = repository.materials
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MaterialsResponse())
+
+    val accessories: StateFlow<AccessoriesResponse> = repository.accessories
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AccessoriesResponse())
 
     val session: StateFlow<NopalSession> = tokenStore.session
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NopalSession(null, null, null, null))
@@ -54,6 +62,18 @@ class WorkshopViewModel @Inject constructor(
     fun pause(machineId: String) = sendAction(machineId, "pause")
 
     fun cancel(machineId: String) = sendAction(machineId, "cancel")
+
+    fun assignMaterial(machineId: String, spoolId: Int?) {
+        viewModelScope.launch { repository.setActiveMaterial(machineId, spoolId) }
+    }
+
+    fun setAccessoryPower(accessoryId: String, on: Boolean) {
+        viewModelScope.launch { repository.setAccessoryPower(accessoryId, on) }
+    }
+
+    fun runScene(sceneId: String) {
+        viewModelScope.launch { repository.runAccessoryScene(sceneId) }
+    }
 
     private fun sendAction(machineId: String, action: String) {
         viewModelScope.launch {

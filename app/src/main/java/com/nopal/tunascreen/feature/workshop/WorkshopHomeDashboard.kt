@@ -46,6 +46,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nopal.tunascreen.core.model.Capability
 import com.nopal.tunascreen.core.model.Machine
+import com.nopal.tunascreen.core.model.MaterialsResponse
+import com.nopal.tunascreen.core.model.AccessoriesResponse
 import com.nopal.tunascreen.core.repository.ConnectionState
 import com.nopal.tunascreen.ui.theme.NopalBorder
 import com.nopal.tunascreen.ui.theme.NopalDanger
@@ -67,6 +69,8 @@ internal fun WorkshopHomeDashboard(
     onCancel: (String) -> Unit,
     cameraBaseUrl: String?,
     cameraToken: String?,
+    materials: MaterialsResponse,
+    accessories: AccessoriesResponse,
 ) {
     val activeMachine = remember(machines) {
         machines.firstOrNull { it.status.state in setOf("printing", "running", "working", "paused") }
@@ -104,8 +108,8 @@ internal fun WorkshopHomeDashboard(
             modifier = Modifier.fillMaxWidth().height(145.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            MaterialOverview(activeMachine, modifier = Modifier.weight(1f))
-            AccessoriesOverview(modifier = Modifier.weight(1f))
+            MaterialOverview(activeMachine, materials, { onNavigate("materials") }, modifier = Modifier.weight(1f))
+            AccessoriesOverview(accessories, { onNavigate("accessories") }, modifier = Modifier.weight(1f))
         }
     }
 }
@@ -235,24 +239,24 @@ private fun CameraOverview(
 }
 
 @Composable
-private fun MaterialOverview(machine: Machine?, modifier: Modifier) {
+private fun MaterialOverview(machine: Machine?, response: MaterialsResponse, onOpen: () -> Unit, modifier: Modifier) {
     DashboardPanel("MATERIAL ACTIVO", modifier) {
         Icon(Icons.Default.Inventory2, null, tint = NopalGreen, modifier = Modifier.size(32.dp))
-        Text(
-            if (machine?.has(Capability.SPOOL) == true) "Spoolman vinculado a ${machine.name}" else "Sin material vinculado",
-            color = NopalTextPrimary,
-            fontWeight = FontWeight.Bold,
-        )
-        Text("El peso y la reserva aparecerán cuando NOPAL los exponga en la API.", color = NopalTextSecondary, style = MaterialTheme.typography.bodySmall)
+        val spoolId = machine?.let { response.links[it.id] }
+        val spool = response.spools.firstOrNull { it.id == spoolId }
+        Text(spool?.let { "${it.material} · ${it.name}" } ?: (response.reason ?: "Sin material vinculado"), color = NopalTextPrimary, fontWeight = FontWeight.Bold)
+        Text(spool?.let { "${it.availableG.toInt()} g disponibles" } ?: "${response.spools.size} bobinas en inventario", color = NopalTextSecondary, style = MaterialTheme.typography.bodySmall)
+        OutlinedButton(onClick = onOpen, enabled = response.available) { Text("Ver materiales") }
     }
 }
 
 @Composable
-private fun AccessoriesOverview(modifier: Modifier) {
+private fun AccessoriesOverview(response: AccessoriesResponse, onOpen: () -> Unit, modifier: Modifier) {
     DashboardPanel("ACCESORIOS", modifier) {
-        Icon(Icons.Default.ErrorOutline, null, tint = NopalWarning, modifier = Modifier.size(30.dp))
-        Text("Módulo pendiente de contrato", color = NopalTextPrimary, fontWeight = FontWeight.Bold)
-        Text("No se muestran interruptores hasta recibir estados y acciones reales de NOPAL.", color = NopalTextSecondary, style = MaterialTheme.typography.bodySmall)
+        Icon(Icons.Default.Power, null, tint = if (response.available) NopalGreen else NopalWarning, modifier = Modifier.size(30.dp))
+        Text(if (response.available) "${response.accessories.count { it.on == true }} encendidos" else (response.reason ?: "No disponibles"), color = NopalTextPrimary, fontWeight = FontWeight.Bold)
+        Text("${response.accessories.size} dispositivos · ${response.scenes.size} escenas", color = NopalTextSecondary, style = MaterialTheme.typography.bodySmall)
+        OutlinedButton(onClick = onOpen, enabled = response.available) { Text("Controlar") }
     }
 }
 

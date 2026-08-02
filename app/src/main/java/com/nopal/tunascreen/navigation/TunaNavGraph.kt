@@ -15,6 +15,9 @@ import com.nopal.tunascreen.feature.workshop.WorkshopScreen
 import com.nopal.tunascreen.feature.workshop.CamerasScreen
 import com.nopal.tunascreen.feature.workshop.MachinesScreen
 import com.nopal.tunascreen.feature.workshop.SettingsScreen
+import com.nopal.tunascreen.feature.workshop.JobsScreen
+import com.nopal.tunascreen.feature.workshop.MaterialsScreen
+import com.nopal.tunascreen.feature.workshop.AccessoriesScreen
 
 object TunaDestinations {
     const val DISCOVERY = "discovery"
@@ -22,6 +25,9 @@ object TunaDestinations {
     const val WORKSHOP = "workshop"
     const val MACHINES = "machines"
     const val CAMERAS = "cameras"
+    const val JOBS = "jobs"
+    const val MATERIALS = "materials"
+    const val ACCESSORIES = "accessories"
     const val SETTINGS = "settings"
     const val MACHINE = "machine/{machineId}"
     const val MACHINE_ADVANCED = "machine/{machineId}/advanced"
@@ -87,6 +93,18 @@ fun TunaNavGraph(navController: NavHostController, startDestination: String) {
         composable(TunaDestinations.CAMERAS) {
             CamerasScreen(onNavigate = navigateDashboard)
         }
+        composable(TunaDestinations.JOBS) {
+            JobsScreen(
+                onMachineSelected = { machineId -> navController.navigate(TunaDestinations.machine(machineId)) },
+                onNavigate = navigateDashboard,
+            )
+        }
+        composable(TunaDestinations.MATERIALS) {
+            MaterialsScreen(onNavigate = navigateDashboard)
+        }
+        composable(TunaDestinations.ACCESSORIES) {
+            AccessoriesScreen(onNavigate = navigateDashboard)
+        }
         composable(TunaDestinations.SETTINGS) {
             SettingsScreen(
                 onNavigate = navigateDashboard,
@@ -105,6 +123,7 @@ fun TunaNavGraph(navController: NavHostController, startDestination: String) {
             MachineScreen(
                 machineId = machineId,
                 onBack = { navController.popBackStack() },
+                onAdvanced = { navController.navigate(TunaDestinations.machineAdvanced(machineId)) },
             )
         }
         composable(

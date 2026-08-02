@@ -34,7 +34,8 @@ fun NopalTopBar(
     machineSubtitle: String,
     status: String,
     online: Boolean,
-    onListClick: () -> Unit = {}
+    onListClick: () -> Unit = {},
+    onAdvancedClick: (() -> Unit)? = null,
 ) {
     val time by produceState(initialValue = currentTime()) {
         while (true) {
@@ -106,6 +107,15 @@ fun NopalTopBar(
             }
 
             Spacer(modifier = Modifier.weight(1f))
+
+            onAdvancedClick?.let { openAdvanced ->
+                TextButton(onClick = openAdvanced) {
+                    Icon(Icons.Default.Tune, null, tint = NopalGreen, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("AVANZADO", color = NopalGreen, style = MaterialTheme.typography.labelMedium)
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+            }
 
             // Right side info
             Row(verticalAlignment = Alignment.CenterVertically) {

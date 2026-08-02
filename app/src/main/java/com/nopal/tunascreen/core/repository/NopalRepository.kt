@@ -8,6 +8,10 @@ import com.nopal.tunascreen.core.model.ConsoleMessage
 import com.nopal.tunascreen.core.model.PairConfirmRequest
 import com.nopal.tunascreen.core.model.PairConfirmResponse
 import com.nopal.tunascreen.core.model.ServerInfo
+import com.nopal.tunascreen.core.model.AccessoriesResponse
+import com.nopal.tunascreen.core.model.AccessoryPowerRequest
+import com.nopal.tunascreen.core.model.ActiveMaterialRequest
+import com.nopal.tunascreen.core.model.MaterialsResponse
 import com.nopal.tunascreen.core.network.NopalApiService
 import com.nopal.tunascreen.core.network.TunaEvent
 import com.nopal.tunascreen.core.network.TunaWebSocketClient
@@ -44,6 +48,12 @@ class NopalRepository @Inject constructor(
 
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
+
+    private val _materials = MutableStateFlow(MaterialsResponse())
+    val materials: StateFlow<MaterialsResponse> = _materials.asStateFlow()
+
+    private val _accessories = MutableStateFlow(AccessoriesResponse())
+    val accessories: StateFlow<AccessoriesResponse> = _accessories.asStateFlow()
 
     private var socketJob: kotlinx.coroutines.Job? = null
 
@@ -87,6 +97,12 @@ class NopalRepository @Inject constructor(
 
     suspend fun refreshOnce() {
         runCatching { api.getMachines() }.onSuccess { applyMachines(it.machines) }
+        refreshWorkshopResources()
+    }
+
+    suspend fun refreshWorkshopResources() {
+        runCatching { api.getMaterials() }.onSuccess { _materials.value = it }
+        runCatching { api.getAccessories() }.onSuccess { _accessories.value = it }
     }
 
     private fun applyMachines(incoming: List<Machine>) {
@@ -129,9 +145,32 @@ class NopalRepository @Inject constructor(
     suspend fun getConsole(machineId: String, count: Int = 50): Result<List<ConsoleMessage>> =
         runCatching { api.getConsole(machineId, count).messages }
 
+    suspend fun setActiveMaterial(machineId: String, spoolId: Int?): Result<Boolean> =
+        runCatching {
+            check(api.setActiveMaterial(ActiveMaterialRequest(machineId, spoolId)).success)
+            refreshWorkshopResources()
+            true
+        }
+
+    suspend fun setAccessoryPower(accessoryId: String, on: Boolean): Result<Boolean> =
+        runCatching {
+            check(api.setAccessoryPower(accessoryId, AccessoryPowerRequest(on)).success)
+            refreshWorkshopResources()
+            true
+        }
+
+    suspend fun runAccessoryScene(sceneId: String): Result<Boolean> =
+        runCatching {
+            check(api.runAccessoryScene(sceneId).success)
+            refreshWorkshopResources()
+            true
+        }
+
     suspend fun forgetPairing() {
         stop()
         tokenStore.clear()
         _machines.value = emptyList()
+        _materials.value = MaterialsResponse()
+        _accessories.value = AccessoriesResponse()
     }
 }

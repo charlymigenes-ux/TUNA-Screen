@@ -9,6 +9,11 @@ import com.nopal.tunascreen.core.model.ConsoleResponse
 import com.nopal.tunascreen.core.model.PairConfirmRequest
 import com.nopal.tunascreen.core.model.PairConfirmResponse
 import com.nopal.tunascreen.core.model.ServerInfo
+import com.nopal.tunascreen.core.model.AccessoriesResponse
+import com.nopal.tunascreen.core.model.AccessoryPowerRequest
+import com.nopal.tunascreen.core.model.ActiveMaterialRequest
+import com.nopal.tunascreen.core.model.MaterialsResponse
+import com.nopal.tunascreen.core.model.ResourceActionResponse
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -51,4 +56,22 @@ interface NopalApiService {
 
     @POST("api/tunascreen/action")
     suspend fun sendAction(@Body body: ActionRequest): ActionResponse
+
+    @GET("api/tunascreen/materials")
+    suspend fun getMaterials(): MaterialsResponse
+
+    @POST("api/tunascreen/materials/active")
+    suspend fun setActiveMaterial(@Body body: ActiveMaterialRequest): ResourceActionResponse
+
+    @GET("api/tunascreen/accessories")
+    suspend fun getAccessories(): AccessoriesResponse
+
+    @POST("api/tunascreen/accessories/{id}/power")
+    suspend fun setAccessoryPower(
+        @Path("id") id: String,
+        @Body body: AccessoryPowerRequest,
+    ): ResourceActionResponse
+
+    @POST("api/tunascreen/accessory-scenes/{id}/run")
+    suspend fun runAccessoryScene(@Path("id") id: String): ResourceActionResponse
 }

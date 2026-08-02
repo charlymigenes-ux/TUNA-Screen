@@ -14,6 +14,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.Power
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.PrecisionManufacturing
 import androidx.compose.material.icons.filled.Print
@@ -408,12 +411,15 @@ fun WorkshopBottomNav(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             NavItem("Taller", Icons.Filled.Home, selectedTab == "workshop", Modifier.weight(1f)) { onTabSelected("workshop") }
             NavItem("Máquinas", Icons.Filled.PrecisionManufacturing, selectedTab == "machines", Modifier.weight(1f)) { onTabSelected("machines") }
+            NavItem("Trabajos", Icons.Filled.Assignment, selectedTab == "jobs", Modifier.weight(1f)) { onTabSelected("jobs") }
             NavItem("Cámaras", Icons.Filled.Videocam, selectedTab == "cameras", Modifier.weight(1f)) { onTabSelected("cameras") }
+            NavItem("Materiales", Icons.Filled.Inventory2, selectedTab == "materials", Modifier.weight(1f)) { onTabSelected("materials") }
+            NavItem("Accesorios", Icons.Filled.Power, selectedTab == "accessories", Modifier.weight(1f)) { onTabSelected("accessories") }
             NavItem("Ajustes", Icons.Filled.Settings, selectedTab == "settings", Modifier.weight(1f)) { onTabSelected("settings") }
         }
     }
@@ -434,10 +440,10 @@ private fun NavItem(
         modifier = modifier.fillMaxHeight(),
         border = if (isSelected) BorderStroke(1.dp, NopalGreen) else null
     ) {
-        Row(
+        Column(
             modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Icon(
                 icon,
@@ -445,11 +451,11 @@ private fun NavItem(
                 tint = if (isSelected) NopalGreen else NopalTextSecondary,
                 modifier = Modifier.size(20.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = label,
                 color = if (isSelected) NopalGreen else NopalTextSecondary,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelSmall,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
             )
         }

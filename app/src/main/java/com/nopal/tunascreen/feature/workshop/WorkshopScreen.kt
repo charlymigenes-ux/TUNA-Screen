@@ -79,6 +79,8 @@ fun WorkshopScreen(
     val machines by viewModel.machines.collectAsState()
     val connection by viewModel.connectionState.collectAsState()
     val session by viewModel.session.collectAsState()
+    val materials by viewModel.materials.collectAsState()
+    val accessories by viewModel.accessories.collectAsState()
     var filter by remember { mutableStateOf<MachineType?>(null) }
     val onlineCount = remember(machines) { machines.count { it.online } }
     val visibleMachines = remember(machines, filter) {
@@ -132,6 +134,8 @@ fun WorkshopScreen(
                     onCancel = viewModel::cancel,
                     cameraBaseUrl = session.baseUrl,
                     cameraToken = session.token,
+                    materials = materials,
+                    accessories = accessories,
                 )
             }
         } else {

@@ -86,6 +86,7 @@ import com.nopal.tunascreen.ui.theme.NopalWarning
 fun MachineScreen(
     machineId: String,
     onBack: () -> Unit,
+    onAdvanced: () -> Unit,
     viewModel: MachineViewModel = hiltViewModel(),
 ) {
     val machine by viewModel.machine.collectAsState()
@@ -111,6 +112,7 @@ fun MachineScreen(
                 status = if (currentMachine.online) currentMachine.status.state else "OFFLINE",
                 online = currentMachine.online,
                 onListClick = onBack,
+                onAdvancedClick = if (displayProfile.isCompactMachine) null else onAdvanced,
             )
         },
         bottomBar = {

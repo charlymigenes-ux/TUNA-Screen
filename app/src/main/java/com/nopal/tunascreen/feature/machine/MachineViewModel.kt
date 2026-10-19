@@ -3,9 +3,12 @@ package com.nopal.tunascreen.feature.machine
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nopal.tunascreen.core.model.DefaultTemperaturePresets
 import com.nopal.tunascreen.core.model.Machine
+import com.nopal.tunascreen.core.model.TemperaturePreset
 import com.nopal.tunascreen.core.model.MachineMacro
 import com.nopal.tunascreen.core.model.ConsoleMessage
+import com.nopal.tunascreen.core.repository.ConnectionState
 import com.nopal.tunascreen.core.repository.NopalRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,8 +35,26 @@ class MachineViewModel @Inject constructor(
         .map { list -> list.find { it.id == machineId } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), repository.machine(machineId))
 
+    val connection: StateFlow<ConnectionState> = repository.connectionState
+
+    private val _serverHost = MutableStateFlow<String?>(null)
+    val serverHost: StateFlow<String?> = _serverHost.asStateFlow()
+
+    init {
+        viewModelScope.launch { _serverHost.value = repository.serverHost() }
+    }
+
     private val _actionError = MutableStateFlow<String?>(null)
     val actionError: StateFlow<String?> = _actionError.asStateFlow()
+
+    private val _presets = MutableStateFlow(DefaultTemperaturePresets)
+    val presets: StateFlow<List<TemperaturePreset>> = _presets.asStateFlow()
+
+    private val _macrosLoading = MutableStateFlow(false)
+    val macrosLoading: StateFlow<Boolean> = _macrosLoading.asStateFlow()
+
+    private val _macrosFailed = MutableStateFlow(false)
+    val macrosFailed: StateFlow<Boolean> = _macrosFailed.asStateFlow()
 
     private val _macros = MutableStateFlow<List<MachineMacro>>(emptyList())
     val macros: StateFlow<List<MachineMacro>> = _macros.asStateFlow()
@@ -106,11 +127,28 @@ class MachineViewModel @Inject constructor(
     fun sendConsoleCommand(command: String) =
         dispatch("send_console_command", buildJsonObject { put("command", command) })
 
+    /** Perfiles por material de NOPAL; si el servidor aún no los expone se
+     * quedan los valores por defecto. */
+    fun loadPresets() {
+        viewModelScope.launch {
+            repository.getTemperaturePresets()
+                .onSuccess { if (it.isNotEmpty()) _presets.value = it }
+        }
+    }
+
+    fun preheat(extruder: Double, bed: Double) {
+        setTemperature("hotend", extruder)
+        setTemperature("bed", bed)
+    }
+
     fun loadMacros() {
         viewModelScope.launch {
+            _macrosLoading.value = true
+            _macrosFailed.value = false
             repository.getMacros(machineId)
                 .onSuccess { _macros.value = it }
-                .onFailure { _actionError.value = "No se pudieron cargar los macros" }
+                .onFailure { _macrosFailed.value = true }
+            _macrosLoading.value = false
         }
     }
 

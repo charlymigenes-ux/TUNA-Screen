@@ -204,43 +204,6 @@ private fun ValueDialog(
 }
 
 @Composable
-private fun MacrosDialog(viewModel: MachineViewModel, onDismiss: () -> Unit) {
-    val macros by viewModel.macros.collectAsState()
-    LaunchedEffect(Unit) { viewModel.loadMacros() }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Macros Klipper") },
-        text = {
-            Column(
-                modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                if (macros.isEmpty()) {
-                    Text("No hay macros disponibles.")
-                } else {
-                    macros.forEach { macro ->
-                        TextButton(
-                            onClick = {
-                                viewModel.runMacro(macro.name)
-                                onDismiss()
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Text(macro.name)
-                                if (macro.description.isNotBlank()) Text(macro.description)
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = viewModel::loadMacros) { Text("ACTUALIZAR") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("CERRAR") } },
-    )
-}
-
-@Composable
 private fun ConsoleDialog(viewModel: MachineViewModel, onDismiss: () -> Unit) {
     val messages by viewModel.console.collectAsState()
     var command by remember { mutableStateOf("") }
@@ -313,43 +276,6 @@ private fun ExtrudeDialog(viewModel: MachineViewModel, onDismiss: () -> Unit) {
             ) { Text("EJECUTAR") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("CANCELAR") } },
-    )
-}
-
-@Composable
-private fun PreheatDialog(viewModel: MachineViewModel, onDismiss: () -> Unit) {
-    var hotend by remember { mutableStateOf("200") }
-    var bed by remember { mutableStateOf("60") }
-    val hotendValue = hotend.toDoubleOrNull()
-    val bedValue = bed.toDoubleOrNull()
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Precalentar") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                NumberField(hotend, { hotend = it }, "Hotend (°C)")
-                NumberField(bed, { bed = it }, "Cama (°C)")
-            }
-        },
-        confirmButton = {
-            Button(
-                enabled = hotendValue != null && bedValue != null,
-                onClick = {
-                    viewModel.setTemperature("extruder", hotendValue ?: return@Button)
-                    viewModel.setTemperature("heater_bed", bedValue ?: return@Button)
-                    onDismiss()
-                },
-            ) { Text("APLICAR") }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = {
-                    viewModel.setTemperature("extruder", 0.0)
-                    viewModel.setTemperature("heater_bed", 0.0)
-                    onDismiss()
-                },
-            ) { Text("APAGAR") }
-        },
     )
 }
 

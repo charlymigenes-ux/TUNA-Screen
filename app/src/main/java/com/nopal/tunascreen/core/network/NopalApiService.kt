@@ -9,6 +9,7 @@ import com.nopal.tunascreen.core.model.ConsoleResponse
 import com.nopal.tunascreen.core.model.PairConfirmRequest
 import com.nopal.tunascreen.core.model.PairConfirmResponse
 import com.nopal.tunascreen.core.model.ServerInfo
+import com.nopal.tunascreen.core.model.TemperaturePresetsResponse
 import com.nopal.tunascreen.core.model.AccessoriesResponse
 import com.nopal.tunascreen.core.model.AccessoryPowerRequest
 import com.nopal.tunascreen.core.model.ActiveMaterialRequest
@@ -56,6 +57,9 @@ interface NopalApiService {
 
     @POST("api/tunascreen/action")
     suspend fun sendAction(@Body body: ActionRequest): ActionResponse
+
+    @GET("api/tunascreen/temperature-presets")
+    suspend fun getTemperaturePresets(): TemperaturePresetsResponse
 
     @GET("api/tunascreen/materials")
     suspend fun getMaterials(): MaterialsResponse

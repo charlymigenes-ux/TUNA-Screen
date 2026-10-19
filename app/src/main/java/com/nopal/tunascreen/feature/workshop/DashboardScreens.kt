@@ -1,5 +1,20 @@
 package com.nopal.tunascreen.feature.workshop
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Tab
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalContext
+import com.nopal.tunascreen.core.notifications.AlertEvent
+import com.nopal.tunascreen.core.notifications.NotificationPrefs
+import com.nopal.tunascreen.ui.theme.NopalWarning
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -190,6 +205,13 @@ fun CamerasScreen(
     }
 }
 
+private enum class SettingsTab(val title: String) {
+    CONNECTION("CONEXIÓN"),
+    APPEARANCE("APARIENCIA"),
+    SCREEN("PANTALLA"),
+    NOTIFICATIONS("NOTIFICACIONES"),
+}
+
 @Composable
 fun SettingsScreen(
     onNavigate: (String) -> Unit,
@@ -200,8 +222,10 @@ fun SettingsScreen(
     val connection by viewModel.connectionState.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
     val displayMode by viewModel.displayMode.collectAsState()
+    val notificationPrefs by viewModel.notificationPrefs.collectAsState()
     val detectedProfile = LocalDisplayProfile.current
     var confirmForget by remember { mutableStateOf(false) }
+    var tab by rememberSaveable { mutableStateOf(SettingsTab.CONNECTION) }
 
     DashboardScaffold(
         title = "Ajustes",
@@ -209,109 +233,98 @@ fun SettingsScreen(
         connectionStatus = connection.label(),
         onNavigate = onNavigate,
     ) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                text = "CONEXIÓN NOPAL",
-                color = NopalGreen,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-            )
-            Surface(
-                color = NopalSurface,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth(),
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            ScrollableTabRow(
+                selectedTabIndex = tab.ordinal,
+                containerColor = NopalBackground,
+                contentColor = NopalGreen,
+                edgePadding = 8.dp,
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    SettingRow("Estado", connection.label())
-                    SettingRow("Servidor", session.baseUrl ?: "Sin configurar")
-                    SettingRow("Dispositivo", session.deviceId?.takeIf { it.isNotBlank() } ?: "Sin identificador")
-                }
-            }
-
-            Text(
-                text = "APARIENCIA",
-                color = NopalGreen,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-            )
-            Surface(
-                color = NopalSurface,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(TunaThemeMode.entries) { option ->
-                        FilterChip(
-                            selected = themeMode == option,
-                            onClick = { viewModel.setThemeMode(option) },
-                            label = { Text(option.displayName) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                containerColor = NopalSurface,
-                                labelColor = NopalTextSecondary,
-                                selectedContainerColor = NopalGreen.copy(alpha = 0.18f),
-                                selectedLabelColor = NopalTextPrimary,
-                            ),
-                            leadingIcon = {
-                                Box(
-                                    modifier = Modifier.size(12.dp)
-                                        .clip(CircleShape)
-                                        .background(option.previewColor),
-                                )
-                            },
-                        )
-                    }
-                }
-            }
-
-            Text(
-                text = "PERFIL DE PANTALLA",
-                color = NopalGreen,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-            )
-            Surface(
-                color = NopalSurface,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-                    Text(
-                        text = "Detectado: ${detectedProfile.profile.name.replace('_', ' ')}" +
-                            detectedProfile.estimatedDiagonalInches?.let { " · %.1f″".format(it) }.orEmpty(),
-                        color = NopalTextSecondary,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    LazyRow(
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        items(DisplayModeOverride.entries) { option ->
-                            FilterChip(
-                                selected = displayMode == option,
-                                onClick = { viewModel.setDisplayMode(option) },
-                                label = { Text(option.displayName) },
+                SettingsTab.entries.forEach { option ->
+                    Tab(
+                        selected = tab == option,
+                        onClick = { tab = option },
+                        text = {
+                            Text(
+                                option.title,
+                                fontWeight = FontWeight.Bold,
+                                color = if (tab == option) NopalGreen else NopalTextSecondary,
                             )
+                        },
+                    )
+                }
+            }
+            Column(
+                modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                when (tab) {
+                    SettingsTab.CONNECTION -> {
+                        SettingsCard {
+                            SettingRow("Estado", connection.label())
+                            SettingRow("Servidor", session.baseUrl ?: "Sin configurar")
+                            SettingRow("Dispositivo", session.deviceId?.takeIf { it.isNotBlank() } ?: "Sin identificador")
+                        }
+                        OutlinedButton(
+                            onClick = { confirmForget = true },
+                            enabled = session.isPaired,
+                        ) {
+                            androidx.compose.material3.Icon(Icons.Default.LinkOff, null, tint = NopalDanger)
+                            Text("Desvincular este TUNA-Screen", color = NopalDanger, modifier = Modifier.padding(start = 8.dp))
                         }
                     }
-                }
-            }
 
-            OutlinedButton(
-                onClick = { confirmForget = true },
-                enabled = session.isPaired,
-            ) {
-                androidx.compose.material3.Icon(Icons.Default.LinkOff, null, tint = NopalDanger)
-                Text("Desvincular este TUNA-Screen", color = NopalDanger, modifier = Modifier.padding(start = 8.dp))
+                    SettingsTab.APPEARANCE -> SettingsCard {
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            items(TunaThemeMode.entries) { option ->
+                                FilterChip(
+                                    selected = themeMode == option,
+                                    onClick = { viewModel.setThemeMode(option) },
+                                    label = { Text(option.displayName) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        containerColor = NopalSurface,
+                                        labelColor = NopalTextSecondary,
+                                        selectedContainerColor = NopalGreen.copy(alpha = 0.18f),
+                                        selectedLabelColor = NopalTextPrimary,
+                                    ),
+                                    leadingIcon = {
+                                        Box(
+                                            modifier = Modifier.size(12.dp)
+                                                .clip(CircleShape)
+                                                .background(option.previewColor),
+                                        )
+                                    },
+                                )
+                            }
+                        }
+                    }
+
+                    SettingsTab.SCREEN -> SettingsCard {
+                        Text(
+                            text = "Detectado: ${detectedProfile.profile.name.replace('_', ' ')}" +
+                                detectedProfile.estimatedDiagonalInches?.let { " · %.1f″".format(it) }.orEmpty(),
+                            color = NopalTextSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            items(DisplayModeOverride.entries) { option ->
+                                FilterChip(
+                                    selected = displayMode == option,
+                                    onClick = { viewModel.setDisplayMode(option) },
+                                    label = { Text(option.displayName) },
+                                )
+                            }
+                        }
+                    }
+
+                    SettingsTab.NOTIFICATIONS -> NotificationsTab(notificationPrefs, viewModel)
+                }
             }
         }
     }
@@ -333,6 +346,110 @@ fun SettingsScreen(
                 TextButton(onClick = { confirmForget = false }) { Text("Cancelar") }
             },
         )
+    }
+}
+
+@Composable
+private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        color = NopalSurface,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun NotificationsTab(prefs: NotificationPrefs, viewModel: SettingsViewModel) {
+    val context = LocalContext.current
+    var permissionGranted by remember { mutableStateOf(viewModel.hasNotificationPermission()) }
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        permissionGranted = granted
+    }
+
+    if (!permissionGranted) {
+        SettingsCard {
+            Text(
+                "Android necesita tu permiso para mostrar avisos.",
+                color = NopalWarning,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Button(
+                onClick = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                },
+            ) { Text("PERMITIR NOTIFICACIONES") }
+        }
+    }
+
+    SettingsCard {
+        CheckRow(
+            title = "Activar notificaciones",
+            detail = "Interruptor general de todos los avisos.",
+            checked = prefs.enabled,
+            onCheckedChange = viewModel::setNotificationsEnabled,
+        )
+    }
+
+    Text("CÓMO AVISAR", color = NopalGreen, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+    SettingsCard {
+        CheckRow("Visuales", "Notificación en pantalla.", prefs.visual, viewModel::setVisual, enabled = prefs.enabled)
+        CheckRow("Sonoras", "Sonido de notificación.", prefs.sound, viewModel::setSound, enabled = prefs.enabled)
+        CheckRow("Vibrar", "Vibración corta.", prefs.vibrate, viewModel::setVibrate, enabled = prefs.enabled)
+    }
+
+    Text("AVISAR CUANDO", color = NopalGreen, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+    SettingsCard {
+        AlertEvent.entries.forEach { event ->
+            CheckRow(
+                title = event.title,
+                detail = event.detail,
+                checked = event in prefs.events,
+                onCheckedChange = { viewModel.setEvent(event, it) },
+                enabled = prefs.enabled,
+            )
+        }
+    }
+
+    OutlinedButton(onClick = { viewModel.sendTestNotification() }, enabled = prefs.enabled) {
+        Text("ENVIAR AVISO DE PRUEBA")
+    }
+    Text(
+        "Los avisos llegan mientras TUNA-Screen está abierta o en segundo plano; con la app cerrada no hay conexión con NOPAL.",
+        color = NopalTextSecondary,
+        style = MaterialTheme.typography.bodySmall,
+    )
+}
+
+@Composable
+private fun CheckRow(
+    title: String,
+    detail: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = enabled,
+            colors = CheckboxDefaults.colors(checkedColor = NopalGreen),
+        )
+        Column(modifier = Modifier.padding(start = 8.dp)) {
+            Text(title, color = if (enabled) NopalTextPrimary else NopalTextSecondary, fontWeight = FontWeight.Medium)
+            Text(detail, color = NopalTextSecondary, style = MaterialTheme.typography.bodySmall)
+        }
     }
 }
 

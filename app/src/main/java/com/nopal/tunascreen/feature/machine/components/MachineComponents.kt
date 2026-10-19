@@ -422,3 +422,33 @@ fun MachineControlButton(
         }
     }
 }
+
+/** Confirmación previa a cancelar un trabajo: cancelar no se puede deshacer
+ * (se pierde la pieza) y el botón queda pegado al de pausar. */
+@Composable
+fun ConfirmCancelJobDialog(
+    jobName: String?,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("¿Cancelar el trabajo?") },
+        text = {
+            Text(
+                (jobName?.takeIf { it.isNotBlank() }?.let { "Se detendrá \"$it\". " } ?: "") +
+                    "Esta acción no se puede deshacer.",
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onConfirm()
+                    onDismiss()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = NopalDanger),
+            ) { Text("CANCELAR TRABAJO") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("SEGUIR") } },
+    )
+}

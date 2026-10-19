@@ -4,8 +4,20 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import com.nopal.tunascreen.core.model.WorkshopAccessory
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.alpha
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.Air
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assignment
@@ -17,6 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nopal.tunascreen.core.model.Machine
@@ -150,44 +164,184 @@ fun AccessoriesScreen(onNavigate: (String) -> Unit, viewModel: WorkshopViewModel
         if (!response.available) {
             EmptyDashboardState("Accesorios no disponibles", response.reason ?: "Activa el plugin en NOPAL.")
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(vertical = 12.dp),
+            val on = response.accessories.count { it.on == true }
+            val silent = response.accessories.count { !it.online }
+            // Mosaico de mini-fichas verticales: cuantas quepan por ancho.
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 118.dp),
+                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(vertical = 10.dp),
             ) {
                 if (response.scenes.isNotEmpty()) {
-                    item { Text("ESCENAS", color = NopalGreen, fontWeight = FontWeight.Bold) }
-                    items(response.scenes, key = { "scene:${it.id}" }) { scene ->
-                        Surface(color = NopalSurface, shape = RoundedCornerShape(10.dp), border = BorderStroke(1.dp, NopalBorder)) {
-                            Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Power, null, tint = NopalGreen)
-                                Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                                    Text(scene.name, color = NopalTextPrimary, fontWeight = FontWeight.Bold)
-                                    Text("${scene.actionCount} acciones", color = NopalTextSecondary)
-                                }
-                                Button(onClick = { viewModel.runScene(scene.id) }) { Text("EJECUTAR") }
-                            }
-                        }
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        SectionLabel("ESCENAS", "${response.scenes.size}")
+                    }
+                    gridItems(response.scenes, key = { "scene:${it.id}" }) { scene ->
+                        SceneTile(scene.name, scene.actionCount) { viewModel.runScene(scene.id) }
                     }
                 }
-                item { Text("DISPOSITIVOS", color = NopalGreen, fontWeight = FontWeight.Bold) }
-                if (response.accessories.isEmpty()) item { Text("No hay accesorios registrados.", color = NopalTextSecondary) }
-                items(response.accessories, key = { it.id }) { accessory ->
-                    Surface(color = NopalSurface, shape = RoundedCornerShape(10.dp), border = BorderStroke(1.dp, NopalBorder)) {
-                        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Power, null, tint = if (accessory.on == true) NopalGreen else NopalTextSecondary)
-                            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                                Text(accessory.name, color = NopalTextPrimary, fontWeight = FontWeight.Bold)
-                                Text("${accessory.kind} · ${if (accessory.online) "conectado" else "sin respuesta"}", color = if (accessory.online) NopalTextSecondary else NopalWarning)
-                            }
-                            Switch(
-                                checked = accessory.on == true,
-                                enabled = accessory.online,
-                                onCheckedChange = { viewModel.setAccessoryPower(accessory.id, it) },
-                            )
-                        }
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    SectionLabel(
+                        "DISPOSITIVOS",
+                        buildString {
+                            append("$on encendidos")
+                            if (silent > 0) append(" · $silent sin respuesta")
+                        },
+                    )
+                }
+                if (response.accessories.isEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Text("No hay accesorios registrados.", color = NopalTextSecondary)
                     }
                 }
+                gridItems(response.accessories, key = { it.id }) { accessory ->
+                    AccessoryTile(accessory) { viewModel.setAccessoryPower(accessory.id, accessory.on != true) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionLabel(title: String, detail: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(title, color = NopalGreen, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+        Text(detail, color = NopalTextSecondary, style = MaterialTheme.typography.labelMedium)
+    }
+}
+
+private val SceneTone = Color(0xFF27BDEB)
+
+private fun accessoryIcon(kind: String): ImageVector {
+    val k = kind.lowercase()
+    return when {
+        "light" in k || "lamp" in k || "led" in k || "luz" in k -> Icons.Default.Lightbulb
+        "fan" in k || "vent" in k || "air" in k -> Icons.Default.Air
+        "heat" in k || "calef" in k -> Icons.Default.LocalFireDepartment
+        else -> Icons.Default.Power
+    }
+}
+
+/**
+ * Ficha vertical de un accesorio. Toda la ficha enciende o apaga (objetivo
+ * táctil grande) y el estado se lee también como texto, no solo por color:
+ * ENCENDIDO con brillo verde, APAGADO neutro y SIN RESPUESTA atenuado.
+ */
+@Composable
+private fun AccessoryTile(accessory: WorkshopAccessory, onToggle: () -> Unit) {
+    val isOn = accessory.on == true
+    val tone = when {
+        !accessory.online -> NopalWarning
+        isOn -> NopalGreen
+        else -> NopalTextSecondary
+    }
+    val stateText = when {
+        !accessory.online -> "SIN RESPUESTA"
+        isOn -> "ENCENDIDO"
+        else -> "APAGADO"
+    }
+    val shape = RoundedCornerShape(14.dp)
+    Surface(
+        onClick = onToggle,
+        enabled = accessory.online,
+        color = if (isOn && accessory.online) NopalGreen.copy(alpha = 0.10f) else NopalSurface,
+        shape = shape,
+        border = BorderStroke(1.dp, if (isOn && accessory.online) NopalGreen.copy(alpha = 0.85f) else NopalBorder),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 148.dp)
+            .then(if (isOn && accessory.online) Modifier.shadow(8.dp, shape, ambientColor = NopalGreen, spotColor = NopalGreen) else Modifier)
+            .alpha(if (accessory.online) 1f else 0.7f),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(tone.copy(alpha = if (isOn && accessory.online) 0.22f else 0.12f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(accessoryIcon(accessory.kind), null, tint = tone, modifier = Modifier.size(28.dp))
+            }
+            Text(
+                accessory.name,
+                color = NopalTextPrimary,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                accessory.kind,
+                color = NopalTextSecondary,
+                style = MaterialTheme.typography.labelSmall,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                Box(Modifier.size(7.dp).clip(CircleShape).background(tone))
+                Text(stateText, color = tone, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+            }
+            Switch(
+                checked = isOn,
+                enabled = accessory.online,
+                onCheckedChange = null,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SceneTile(name: String, actionCount: Int, onRun: () -> Unit) {
+    val shape = RoundedCornerShape(14.dp)
+    Surface(
+        onClick = onRun,
+        color = SceneTone.copy(alpha = 0.08f),
+        shape = shape,
+        border = BorderStroke(1.dp, SceneTone.copy(alpha = 0.6f)),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 148.dp),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
+        ) {
+            Box(
+                modifier = Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(SceneTone.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center,
+            ) { Icon(Icons.Default.PlayArrow, null, tint = SceneTone, modifier = Modifier.size(30.dp)) }
+            Text(
+                name,
+                color = NopalTextPrimary,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                "$actionCount acciones",
+                color = NopalTextSecondary,
+                style = MaterialTheme.typography.labelSmall,
+            )
+            Surface(color = SceneTone.copy(alpha = 0.18f), shape = RoundedCornerShape(20.dp)) {
+                Text(
+                    "EJECUTAR",
+                    color = SceneTone,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                )
             }
         }
     }

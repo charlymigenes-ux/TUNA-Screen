@@ -8,6 +8,7 @@ import com.nopal.tunascreen.core.model.ConsoleMessage
 import com.nopal.tunascreen.core.model.PairConfirmRequest
 import com.nopal.tunascreen.core.model.PairConfirmResponse
 import com.nopal.tunascreen.core.model.ServerInfo
+import com.nopal.tunascreen.core.model.TemperaturePreset
 import com.nopal.tunascreen.core.model.AccessoriesResponse
 import com.nopal.tunascreen.core.model.AccessoryPowerRequest
 import com.nopal.tunascreen.core.model.ActiveMaterialRequest
@@ -58,6 +59,9 @@ class NopalRepository @Inject constructor(
     private var socketJob: kotlinx.coroutines.Job? = null
 
     fun machine(id: String): Machine? = _machines.value.find { it.id == id }
+
+    /** Host del NOPAL pareado, para mostrarlo en la barra de estado. */
+    suspend fun serverHost(): String? = tokenStore.currentSession().host
 
     /** Llamado una vez al entrar a Taller/Máquina (después del pairing o al
      * reabrir la app ya pareada) -- carga por REST y deja el WS abierto
@@ -138,6 +142,9 @@ class NopalRepository @Inject constructor(
             check(response.success) { "NOPAL rechazó la acción $action" }
             true
         }
+
+    suspend fun getTemperaturePresets(): Result<List<TemperaturePreset>> =
+        runCatching { api.getTemperaturePresets().materials }
 
     suspend fun getMacros(machineId: String): Result<List<MachineMacro>> =
         runCatching { api.getMacros(machineId).macros }

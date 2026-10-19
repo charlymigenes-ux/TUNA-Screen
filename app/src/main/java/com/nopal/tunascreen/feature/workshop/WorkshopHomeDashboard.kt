@@ -37,7 +37,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,6 +60,7 @@ import com.nopal.tunascreen.ui.theme.NopalSurfaceElevated
 import com.nopal.tunascreen.ui.theme.NopalTextPrimary
 import com.nopal.tunascreen.ui.theme.NopalTextSecondary
 import com.nopal.tunascreen.ui.theme.NopalWarning
+import com.nopal.tunascreen.feature.machine.components.ConfirmCancelJobDialog
 import com.nopal.tunascreen.feature.workshop.components.CameraStreamView
 
 @Composable
@@ -191,12 +195,20 @@ private fun ActiveJobPanel(
     onCancel: () -> Unit,
     modifier: Modifier,
 ) {
+    var confirmCancel by remember { mutableStateOf(false) }
     DashboardPanel("TRABAJO ACTIVO", modifier) {
         if (machine?.status?.job == null) {
             EmptyDashboardMessage("No hay trabajos activos")
             return@DashboardPanel
         }
         val job = machine.status.job
+        if (confirmCancel) {
+            ConfirmCancelJobDialog(
+                jobName = job.filename,
+                onConfirm = onCancel,
+                onDismiss = { confirmCancel = false },
+            )
+        }
         Text(machine.name, color = NopalTextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Text(job.filename ?: "Trabajo", color = NopalTextSecondary)
         Text("${job.percent ?: 0}%", color = Color(0xFF27BDEB), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
@@ -206,10 +218,14 @@ private fun ActiveJobPanel(
             color = Color(0xFF27BDEB),
             trackColor = NopalSurfaceElevated,
         )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Transcurrido ${formatJobTime(job.elapsedS)}", color = NopalTextSecondary, style = MaterialTheme.typography.bodySmall)
+            Text("Restante ${formatJobTime(job.remainingS)}", color = NopalTextSecondary, style = MaterialTheme.typography.bodySmall)
+        }
         Spacer(Modifier.weight(1f))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onPause, enabled = machine.supports("pause")) { Icon(Icons.Default.Pause, null); Text(" Pausar") }
-            OutlinedButton(onClick = onCancel, enabled = machine.supports("cancel")) { Icon(Icons.Default.Stop, null); Text(" Cancelar") }
+            OutlinedButton(onClick = { confirmCancel = true }, enabled = machine.supports("cancel")) { Icon(Icons.Default.Stop, null); Text(" Cancelar") }
             OutlinedButton(onClick = onOpen) { Text("Abrir") }
         }
     }
@@ -281,6 +297,11 @@ private fun homeStatusColor(machine: Machine): Color = when {
     machine.status.state == "paused" -> NopalWarning
     machine.status.state in setOf("printing", "running", "working") -> Color(0xFF27BDEB)
     else -> NopalGreen
+}
+
+private fun formatJobTime(seconds: Long?): String {
+    if (seconds == null) return "--:--:--"
+    return "%02d:%02d:%02d".format(seconds / 3600, (seconds % 3600) / 60, seconds % 60)
 }
 
 private fun machineSummary(machine: Machine): String = when (machine.type) {

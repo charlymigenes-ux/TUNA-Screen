@@ -63,10 +63,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.nopal.tunascreen.core.model.Capability
 import com.nopal.tunascreen.core.model.Machine
 import com.nopal.tunascreen.core.model.MachineType
+import com.nopal.tunascreen.feature.machine.components.ConfirmCancelJobDialog
 import com.nopal.tunascreen.feature.machine.components.JobProgressCard
 import com.nopal.tunascreen.feature.machine.components.MachineControlButton
 import com.nopal.tunascreen.feature.machine.components.MachineJobPreview
 import com.nopal.tunascreen.feature.machine.components.NopalTopBar
+import com.nopal.tunascreen.feature.machine.components.PrinterLandscapeDashboard
 import com.nopal.tunascreen.feature.machine.components.QuickActionButton
 import com.nopal.tunascreen.feature.machine.components.TemperatureCard
 import com.nopal.tunascreen.ui.theme.NopalBackground
@@ -95,6 +97,18 @@ fun MachineScreen(
     val isJobActive = currentMachine.status.state in setOf("printing", "paused", "working", "running")
     val displayProfile = LocalDisplayProfile.current.profile
     var pendingCommand by remember { mutableStateOf<MachineCommand?>(null) }
+    var confirmCancel by remember { mutableStateOf(false) }
+    // En pantallas que no son de máquina compacta la impresora usa un panel
+    // único con sus propias acciones rápidas, así que no lleva barra inferior.
+    val usesPrinterDashboard = !displayProfile.isCompactMachine && currentMachine.type == MachineType.PRINTER
+
+    if (confirmCancel) {
+        ConfirmCancelJobDialog(
+            jobName = currentMachine.status.job?.filename,
+            onConfirm = viewModel::cancel,
+            onDismiss = { confirmCancel = false },
+        )
+    }
 
     pendingCommand?.let { command ->
         MachineActionDialog(
@@ -106,7 +120,7 @@ fun MachineScreen(
 
     Scaffold(
         topBar = {
-            NopalTopBar(
+            if (!usesPrinterDashboard) NopalTopBar(
                 machineName = currentMachine.name,
                 machineSubtitle = currentMachine.type.displayName(),
                 status = if (currentMachine.online) currentMachine.status.state else "OFFLINE",
@@ -116,17 +130,34 @@ fun MachineScreen(
             )
         },
         bottomBar = {
-            MachineBottomControlBar(
-                machine = currentMachine,
-                viewModel = viewModel,
-                isPaused = currentMachine.status.state == "paused",
-                isJobActive = isJobActive,
-                displayProfile = displayProfile,
-                onCommand = { pendingCommand = it },
-            )
+            if (!usesPrinterDashboard) {
+                MachineBottomControlBar(
+                    machine = currentMachine,
+                    viewModel = viewModel,
+                    isPaused = currentMachine.status.state == "paused",
+                    isJobActive = isJobActive,
+                    displayProfile = displayProfile,
+                    onCommand = { pendingCommand = it },
+                    onCancelRequest = { confirmCancel = true },
+                )
+            }
         },
         containerColor = NopalBackground,
     ) { padding ->
+        if (usesPrinterDashboard) {
+            PrinterLandscapeDashboard(
+                machine = currentMachine,
+                viewModel = viewModel,
+                isJobActive = isJobActive,
+                error = error,
+                onDismissError = viewModel::dismissError,
+                onBack = onBack,
+                onCancelRequest = { confirmCancel = true },
+                onCommand = { pendingCommand = it },
+                modifier = Modifier.padding(padding).padding(8.dp),
+            )
+            return@Scaffold
+        }
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).padding(12.dp),
         ) {
@@ -143,7 +174,7 @@ fun MachineScreen(
                 CompactMachineContent(currentMachine)
             } else {
                 when (currentMachine.type) {
-                    MachineType.PRINTER -> PrinterMachineContent(currentMachine) { pendingCommand = it }
+                    MachineType.PRINTER -> Unit // lo dibuja PrinterLandscapeDashboard
                     MachineType.LASER -> LaserMachineContent(currentMachine) { pendingCommand = it }
                     MachineType.CNC -> CncMachineContent(currentMachine) { pendingCommand = it }
                 }
@@ -281,71 +312,6 @@ private fun ColumnScope.CompactMetric(label: String, value: String, icon: ImageV
             }
         }
     }
-}
-
-@Composable
-private fun PrinterMachineContent(machine: Machine, onCommand: (MachineCommand) -> Unit) {
-    MachineColumns(
-        machine = machine,
-        leftTitle = "TEMPERATURAS",
-        left = {
-            TemperatureCard(
-                label = "HOTEND",
-                current = "${machine.status.hotend?.current?.toInt() ?: "--"}",
-                target = "${machine.status.hotend?.target?.toInt() ?: "--"}",
-                icon = Icons.Default.Thermostat,
-            )
-            TemperatureCard(
-                label = "CAMA",
-                current = "${machine.status.bed?.current?.toInt() ?: "--"}",
-                target = "${machine.status.bed?.target?.toInt() ?: "--"}",
-                icon = Icons.Default.HotTub,
-            )
-            if (machine.has(Capability.FAN)) {
-                MachineMetricCard(
-                    "VENTILADOR",
-                    machine.status.fanPercent?.toInt()?.toString() ?: "--",
-                    "%",
-                    Icons.Default.Air,
-                )
-            }
-        },
-        rightTitle = "ACCIONES DE IMPRESIÓN",
-        right = {
-            SupportedAction(
-                machine, "set_temperature", "Precalentar",
-                Icons.Default.DeviceThermostat, MachineCommand.PREHEAT, onCommand,
-            )
-            SupportedAction(
-                machine, "extrude", "Cargar o retraer filamento",
-                Icons.Default.KeyboardDoubleArrowDown, MachineCommand.EXTRUDE, onCommand,
-            )
-            SupportedAction(
-                machine, "set_fan", "Ventilador de capa",
-                Icons.Default.Air, MachineCommand.FAN, onCommand,
-            )
-            SupportedAction(
-                machine, "set_speed_factor", "Velocidad ${machine.status.speedFactor?.toInt() ?: 100}%",
-                Icons.Default.Speed, MachineCommand.SPEED_FACTOR, onCommand,
-            )
-            SupportedAction(
-                machine, "set_flow_factor", "Flujo ${machine.status.flowFactor?.toInt() ?: 100}%",
-                Icons.Default.Tune, MachineCommand.FLOW_FACTOR, onCommand,
-            )
-            SupportedAction(
-                machine, "set_z_offset", "Offset Z ${"%.2f".format(machine.status.zOffset ?: 0.0)} mm",
-                Icons.Default.KeyboardArrowDown, MachineCommand.Z_OFFSET, onCommand,
-            )
-            SupportedAction(
-                machine, "run_macro", "Macros Klipper",
-                Icons.Default.FlashOn, MachineCommand.MACROS, onCommand,
-            )
-            SupportedAction(
-                machine, "send_console_command", "Consola G-code",
-                Icons.Default.Tune, MachineCommand.CONSOLE, onCommand,
-            )
-        },
-    )
 }
 
 @Composable
@@ -533,6 +499,7 @@ private fun MachineBottomControlBar(
     isJobActive: Boolean,
     displayProfile: DisplayProfile,
     onCommand: (MachineCommand) -> Unit,
+    onCancelRequest: () -> Unit,
 ) {
     val type = machine.type
     val compact = displayProfile.isCompactMachine
@@ -582,7 +549,7 @@ private fun MachineBottomControlBar(
                 MachineControlButton(
                     "CANCELAR",
                     Icons.Default.Stop,
-                    { viewModel.cancel() },
+                    onCancelRequest,
                     isDanger = true,
                     enabled = isJobActive && machine.supports("cancel"),
                     modifier = Modifier.weight(1f),
@@ -631,7 +598,7 @@ private fun MachineBottomControlBar(
             MachineControlButton(
                 "CANCELAR",
                 Icons.Default.Stop,
-                { viewModel.cancel() },
+                onCancelRequest,
                 isDanger = true,
                 enabled = isJobActive && machine.supports("cancel"),
                 modifier = Modifier.weight(1f),

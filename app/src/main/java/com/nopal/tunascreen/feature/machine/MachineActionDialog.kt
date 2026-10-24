@@ -40,6 +40,7 @@ internal enum class MachineCommand {
     Z_OFFSET,
     MACROS,
     CONSOLE,
+    ENDSTOPS,
 }
 
 @Composable
@@ -129,6 +130,7 @@ internal fun MachineActionDialog(
         )
         MachineCommand.MACROS -> MacrosDialog(viewModel, onDismiss)
         MachineCommand.CONSOLE -> ConsoleDialog(viewModel, onDismiss)
+        MachineCommand.ENDSTOPS -> EndstopsDialog(viewModel, onDismiss)
     }
 }
 

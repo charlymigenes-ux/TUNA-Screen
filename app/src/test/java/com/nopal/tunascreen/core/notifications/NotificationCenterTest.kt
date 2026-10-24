@@ -17,12 +17,13 @@ class NotificationCenterTest {
         hotend: TempPair? = null,
         bed: TempPair? = null,
         job: JobProgress? = null,
+        homedAxes: String? = null,
     ) = Machine(
         id = "klipper:7125",
         name = "ET4",
         type = MachineType.PRINTER,
         online = online,
-        status = MachineStatus(state = state, hotend = hotend, bed = bed, job = job),
+        status = MachineStatus(state = state, hotend = hotend, bed = bed, job = job, homedAxes = homedAxes),
     )
 
     private fun events(before: Machine, after: Machine) =
@@ -56,6 +57,17 @@ class NotificationCenterTest {
         val cooling = machine(hotend = TempPair(60.0, 0.0))
         val cold = machine(hotend = TempPair(30.0, 0.0))
         assertEquals(listOf(AlertEvent.COOLED_DOWN), events(cooling, cold))
+    }
+
+    @Test
+    fun `terminar un home avisa solo al pasar de sin home a todos los ejes`() {
+        assertEquals(
+            listOf(AlertEvent.HOME_DONE),
+            events(machine(homedAxes = ""), machine(homedAxes = "xyz")),
+        )
+        assertTrue(events(machine(homedAxes = "xyz"), machine(homedAxes = "xyz")).isEmpty())
+        // Una máquina que no reporta ejes referenciados no genera el aviso.
+        assertTrue(events(machine(), machine(homedAxes = "xyz")).isEmpty())
     }
 
     @Test

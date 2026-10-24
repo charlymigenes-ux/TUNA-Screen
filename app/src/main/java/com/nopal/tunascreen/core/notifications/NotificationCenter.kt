@@ -18,6 +18,7 @@ import com.nopal.tunascreen.MainActivity
 import com.nopal.tunascreen.R
 import com.nopal.tunascreen.core.model.Machine
 import com.nopal.tunascreen.core.model.ThermalPhase
+import com.nopal.tunascreen.core.model.isFullyHomed
 import com.nopal.tunascreen.core.model.thermalPhaseOf
 import com.nopal.tunascreen.core.repository.NopalRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -167,6 +168,11 @@ class NotificationCenter @Inject constructor(
             }
             if (!after.online) return alerts
 
+            if (before.status.homedAxes != null && !isFullyHomed(before.status.homedAxes) &&
+                isFullyHomed(after.status.homedAxes)
+            ) {
+                add(AlertEvent.HOME_DONE, "Los ejes X, Y y Z están en home.")
+            }
             val was = before.status.state
             val now = after.status.state
             val file = (after.status.job?.filename ?: before.status.job?.filename)

@@ -143,6 +143,9 @@ class NopalRepository @Inject constructor(
             true
         }
 
+    suspend fun getEndstops(machineId: String): Result<Map<String, String>> =
+        runCatching { api.getEndstops(machineId).endstops }
+
     suspend fun getTemperaturePresets(): Result<List<TemperaturePreset>> =
         runCatching { api.getTemperaturePresets().materials }
 

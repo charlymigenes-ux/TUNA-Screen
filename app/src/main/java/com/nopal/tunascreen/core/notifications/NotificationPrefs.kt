@@ -16,6 +16,7 @@ import javax.inject.Singleton
 enum class AlertEvent(val storageKey: String, val title: String, val detail: String) {
     HEATING_READY("heating_ready", "Calentamiento listo", "El extrusor o la cama llegaron a su temperatura."),
     COOLED_DOWN("cooled_down", "Enfriado", "El extrusor o la cama ya se enfriaron."),
+    HOME_DONE("home_done", "Home completado", "Una máquina terminó de hacer home."),
     JOB_FINISHED("job_finished", "Trabajo terminado", "Una máquina terminó su trabajo."),
     JOB_PAUSED("job_paused", "Trabajo en pausa", "Un trabajo se pausó."),
     JOB_ERROR("job_error", "Error en una máquina", "Una máquina reporta un error."),

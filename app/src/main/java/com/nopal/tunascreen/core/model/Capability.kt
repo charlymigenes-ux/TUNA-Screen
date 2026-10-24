@@ -34,6 +34,7 @@ enum class Capability {
     @SerialName("speed_override") SPEED_OVERRIDE,
     @SerialName("flow_override") FLOW_OVERRIDE,
     @SerialName("z_offset") Z_OFFSET,
+    @SerialName("endstops") ENDSTOPS,
     @SerialName("macros") MACROS,
     @SerialName("console") CONSOLE,
 

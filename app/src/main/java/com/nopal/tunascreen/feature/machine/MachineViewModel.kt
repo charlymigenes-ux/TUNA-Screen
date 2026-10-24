@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nopal.tunascreen.core.model.DefaultTemperaturePresets
+import com.nopal.tunascreen.core.model.HomePhase
+import com.nopal.tunascreen.core.model.HomeTracker
 import com.nopal.tunascreen.core.model.Machine
 import com.nopal.tunascreen.core.model.TemperaturePreset
 import com.nopal.tunascreen.core.model.MachineMacro
@@ -11,7 +13,10 @@ import com.nopal.tunascreen.core.model.ConsoleMessage
 import com.nopal.tunascreen.core.repository.ConnectionState
 import com.nopal.tunascreen.core.repository.NopalRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -44,11 +49,26 @@ class MachineViewModel @Inject constructor(
         viewModelScope.launch { _serverHost.value = repository.serverHost() }
     }
 
+    private val homeTracker = HomeTracker()
+
+    // Se recalcula cada medio segundo para que "Home completado" caduque solo.
+    val homePhase: StateFlow<HomePhase?> = combine(
+        machine,
+        flow { while (true) { emit(Unit); delay(500) } },
+    ) { current, _ -> homeTracker.update(current?.status?.homedAxes, System.currentTimeMillis()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     private val _actionError = MutableStateFlow<String?>(null)
     val actionError: StateFlow<String?> = _actionError.asStateFlow()
 
     private val _presets = MutableStateFlow(DefaultTemperaturePresets)
     val presets: StateFlow<List<TemperaturePreset>> = _presets.asStateFlow()
+
+    private val _endstops = MutableStateFlow<Map<String, String>>(emptyMap())
+    val endstops: StateFlow<Map<String, String>> = _endstops.asStateFlow()
+
+    private val _endstopsFailed = MutableStateFlow(false)
+    val endstopsFailed: StateFlow<Boolean> = _endstopsFailed.asStateFlow()
 
     private val _macrosLoading = MutableStateFlow(false)
     val macrosLoading: StateFlow<Boolean> = _macrosLoading.asStateFlow()
@@ -62,7 +82,12 @@ class MachineViewModel @Inject constructor(
     private val _console = MutableStateFlow<List<ConsoleMessage>>(emptyList())
     val console: StateFlow<List<ConsoleMessage>> = _console.asStateFlow()
 
-    fun home(axes: String = "") = dispatch(
+    fun home(axes: String = "") {
+        homeTracker.onRequest(System.currentTimeMillis())
+        sendHome(axes)
+    }
+
+    private fun sendHome(axes: String) = dispatch(
         "home",
         if (axes.isBlank()) JsonObject(emptyMap()) else buildJsonObject { put("axes", axes) },
     )
@@ -140,6 +165,20 @@ class MachineViewModel @Inject constructor(
         setTemperature("hotend", extruder)
         setTemperature("bed", bed)
     }
+
+    /** Lee el estado de los límites de carrera (solo lectura, no envía G-code). */
+    fun loadEndstops() {
+        viewModelScope.launch {
+            repository.getEndstops(machineId)
+                .onSuccess {
+                    _endstops.value = it
+                    _endstopsFailed.value = false
+                }
+                .onFailure { _endstopsFailed.value = true }
+        }
+    }
+
+    fun disableMotors() = dispatch("disable_motors")
 
     fun loadMacros() {
         viewModelScope.launch {

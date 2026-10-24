@@ -4,6 +4,7 @@ import com.nopal.tunascreen.core.model.ActionRequest
 import com.nopal.tunascreen.core.model.ActionResponse
 import com.nopal.tunascreen.core.model.Machine
 import com.nopal.tunascreen.core.model.MachinesResponse
+import com.nopal.tunascreen.core.model.EndstopsResponse
 import com.nopal.tunascreen.core.model.MacrosResponse
 import com.nopal.tunascreen.core.model.ConsoleResponse
 import com.nopal.tunascreen.core.model.PairConfirmRequest
@@ -45,6 +46,9 @@ interface NopalApiService {
 
     @GET("api/tunascreen/machine/{id}")
     suspend fun getMachine(@Path("id") id: String): Machine
+
+    @GET("api/tunascreen/machine/{id}/endstops")
+    suspend fun getEndstops(@Path("id") id: String): EndstopsResponse
 
     @GET("api/tunascreen/machine/{id}/macros")
     suspend fun getMacros(@Path("id") id: String): MacrosResponse

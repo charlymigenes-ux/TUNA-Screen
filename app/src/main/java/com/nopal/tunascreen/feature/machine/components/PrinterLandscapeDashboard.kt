@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,6 +35,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AcUnit
+import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.LinearScale
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Air
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DeviceThermostat
@@ -100,7 +105,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nopal.tunascreen.core.model.Capability
 import com.nopal.tunascreen.core.model.Machine
+import com.nopal.tunascreen.core.model.HomePhase
 import com.nopal.tunascreen.core.model.TempPair
 import com.nopal.tunascreen.core.model.ThermalPhase
 import com.nopal.tunascreen.core.model.thermalPhaseOf
@@ -142,6 +149,7 @@ private val CoolColor = Color(0xFF27BDEB)
 private val PauseNeon = Color(0xFFFFB020)
 private val CancelNeon = Color(0xFFFF4D5E)
 private val HeatNeon = Color(0xFF3DDC84)
+private val HomeColor = Color(0xFFB794F6)
 
 private val PanelGap = 6.dp
 private val ColumnGap = 8.dp
@@ -169,9 +177,10 @@ internal fun PrinterLandscapeDashboard(
     val printing = machine.status.state in PRINTING_STATES
     val host by viewModel.serverHost.collectAsState()
     val connection by viewModel.connection.collectAsState()
+    val homePhase by viewModel.homePhase.collectAsState()
 
     Column(modifier = modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(ColumnGap)) {
-        PrinterStatusBar(machine, host, connection)
+        PrinterStatusBar(machine, host, connection, homePhase)
         error?.let { ErrorStrip(it, onDismissError) }
         Row(
             modifier = Modifier.fillMaxSize(),
@@ -183,7 +192,7 @@ internal fun PrinterLandscapeDashboard(
                 QuickActions(machine, viewModel, isJobActive, onCancelRequest, onCommand)
             }
             ScrollColumn(Modifier.weight(1f)) {
-                TemperaturesPanel(machine)
+                TemperaturesPanel(machine, viewModel)
                 ExtrusionPanel(machine, viewModel, printing)
                 FanPanel(machine, viewModel)
             }
@@ -253,21 +262,41 @@ private fun thermalSummary(machine: Machine): ThermalSummary? {
     }
 }
 
+private data class ChipData(val text: String, val color: Color, val icon: ImageVector, val pulse: Boolean)
+
 @Composable
-private fun ThermalChip(machine: Machine) {
-    val summary = thermalSummary(machine) ?: return
-    val color = phaseColor(summary.phase)
-    val moving = summary.phase == ThermalPhase.HEATING || summary.phase == ThermalPhase.COOLING
-    val pulse by rememberInfiniteTransition(label = "thermal").animateFloat(
+private fun chipFor(machine: Machine, homePhase: HomePhase?): ChipData? {
+    when (homePhase) {
+        HomePhase.HOMING -> return ChipData("Haciendo home…", HomeColor, Icons.Default.Home, true)
+        HomePhase.DONE -> return ChipData("Home completado", NopalGreen, Icons.Default.CheckCircle, false)
+        null -> Unit
+    }
+    val summary = thermalSummary(machine) ?: return null
+    return ChipData(
+        summary.text,
+        phaseColor(summary.phase),
+        when (summary.phase) {
+            ThermalPhase.HEATING -> Icons.Default.LocalFireDepartment
+            ThermalPhase.COOLING -> Icons.Default.AcUnit
+            else -> Icons.Default.CheckCircle
+        },
+        summary.phase == ThermalPhase.HEATING || summary.phase == ThermalPhase.COOLING,
+    )
+}
+
+@Composable
+private fun StatusChip(machine: Machine, homePhase: HomePhase?) {
+    val chip = chipFor(machine, homePhase) ?: return
+    val pulse by rememberInfiniteTransition(label = "chip").animateFloat(
         initialValue = 0.45f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
-        label = "thermalPulse",
+        label = "chipPulse",
     )
     Surface(
-        color = color.copy(alpha = 0.14f),
+        color = chip.color.copy(alpha = 0.14f),
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.7f)),
+        border = BorderStroke(1.dp, chip.color.copy(alpha = 0.7f)),
         modifier = Modifier.height(24.dp),
     ) {
         Row(
@@ -276,18 +305,14 @@ private fun ThermalChip(machine: Machine) {
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Icon(
-                when (summary.phase) {
-                    ThermalPhase.HEATING -> Icons.Default.LocalFireDepartment
-                    ThermalPhase.COOLING -> Icons.Default.AcUnit
-                    else -> Icons.Default.CheckCircle
-                },
+                chip.icon,
                 null,
-                tint = color,
-                modifier = Modifier.size(14.dp).alpha(if (moving) pulse else 1f),
+                tint = chip.color,
+                modifier = Modifier.size(14.dp).alpha(if (chip.pulse) pulse else 1f),
             )
             Text(
-                summary.text,
-                color = color,
+                chip.text,
+                color = chip.color,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -300,7 +325,7 @@ private fun ThermalChip(machine: Machine) {
 // ── Barra de estado ──
 
 @Composable
-private fun PrinterStatusBar(machine: Machine, host: String?, connection: ConnectionState) {
+private fun PrinterStatusBar(machine: Machine, host: String?, connection: ConnectionState, homePhase: HomePhase?) {
     val look = statusLook(machine)
     val time by produceState(initialValue = clockNow()) {
         while (true) {
@@ -339,7 +364,7 @@ private fun PrinterStatusBar(machine: Machine, host: String?, connection: Connec
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { ThermalChip(machine) }
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { StatusChip(machine, homePhase) }
             Text(time, color = NopalTextPrimary, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
             Text(date, color = NopalTextSecondary, style = MaterialTheme.typography.labelSmall)
         }
@@ -371,6 +396,7 @@ private fun SideNav(machine: Machine, onBack: () -> Unit, onCommand: (MachineCom
         Triple("set_flow_factor", "Flujo ${machine.status.flowFactor?.roundToInt() ?: 100}%", Icons.Default.Tune) to MachineCommand.FLOW_FACTOR,
         Triple("set_z_offset", "Offset Z ${"%.2f".format(machine.status.zOffset ?: 0.0)} mm", Icons.Default.KeyboardArrowDown) to MachineCommand.Z_OFFSET,
     ).filter { (spec, _) -> machine.actions.contains(spec.first) }
+    val hasEndstops = machine.has(Capability.ENDSTOPS)
 
     if (showAdjustments) {
         AlertDialog(
@@ -378,6 +404,17 @@ private fun SideNav(machine: Machine, onBack: () -> Unit, onCommand: (MachineCom
             title = { Text("Ajustes de impresión") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (hasEndstops) {
+                        QuickActionButton(
+                            label = "Revisar límites de carrera",
+                            icon = Icons.Default.LinearScale,
+                            onClick = {
+                                showAdjustments = false
+                                onCommand(MachineCommand.ENDSTOPS)
+                            },
+                            enabled = machine.online,
+                        )
+                    }
                     adjustments.forEach { (spec, command) ->
                         QuickActionButton(
                             label = spec.second,
@@ -411,7 +448,7 @@ private fun SideNav(machine: Machine, onBack: () -> Unit, onCommand: (MachineCom
             if (machine.actions.contains("run_macro")) {
                 NavItem("MACROS", Icons.Default.Apps, selected = false) { onCommand(MachineCommand.MACROS) }
             }
-            if (adjustments.isNotEmpty()) {
+            if (adjustments.isNotEmpty() || hasEndstops) {
                 NavItem("AJUSTES", Icons.Default.Settings, selected = false) { showAdjustments = true }
             }
         }
@@ -681,46 +718,105 @@ private fun ActionTile(
 }
 
 @Composable
-private fun TemperaturesPanel(machine: Machine) {
+private fun TemperaturesPanel(machine: Machine, viewModel: MachineViewModel) {
+    val canSet = machine.supports("set_temperature")
     Panel("TEMPERATURAS") {
-        TemperatureRow("EXTRUSOR", Icons.Default.Thermostat, machine.status.hotend, HOTEND_MAX_C)
-        TemperatureRow("CAMA", Icons.Default.HotTub, machine.status.bed, BED_MAX_C)
+        TemperatureRow("EXTRUSOR", Icons.Default.Thermostat, machine.status.hotend, HOTEND_MAX_C, canSet) {
+            viewModel.setTemperature("hotend", it)
+        }
+        TemperatureRow("CAMA", Icons.Default.HotTub, machine.status.bed, BED_MAX_C, canSet) {
+            viewModel.setTemperature("bed", it)
+        }
+    }
+}
+
+private const val TARGET_STEP_C = 5
+
+@Composable
+private fun TemperatureRow(
+    label: String,
+    icon: ImageVector,
+    temp: TempPair?,
+    maxC: Double,
+    editable: Boolean,
+    onTarget: (Double) -> Unit,
+) {
+    val current = temp?.current
+    val tone = phaseColor(thermalPhaseOf(temp))
+    val reported = temp?.target?.roundToInt() ?: 0
+    // Objetivo que el usuario va tecleando con − y +: se junta en una sola orden
+    // y se envía cuando deja de tocar; si NOPAL no lo confirma, vuelve a lo reportado.
+    var pending by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(reported) { if (pending == reported) pending = null }
+    LaunchedEffect(pending) {
+        val value = pending ?: return@LaunchedEffect
+        delay(700)
+        onTarget(value.toDouble())
+        delay(5_000)
+        if (pending == value) pending = null
+    }
+    val shown = pending ?: reported
+    val maxTarget = maxC.roundToInt()
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Icon(icon, null, tint = tone, modifier = Modifier.size(26.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(label, color = NopalTextSecondary, style = MaterialTheme.typography.labelSmall)
+                Text(
+                    current?.let { "${it.roundToInt()}°C" } ?: "--°C",
+                    color = tone,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text("OBJETIVO", color = NopalTextSecondary, style = MaterialTheme.typography.labelSmall)
+                if (editable) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TargetStepButton(Icons.Default.Remove, "Bajar objetivo de $label", shown > 0) {
+                            pending = (shown - TARGET_STEP_C).coerceAtLeast(0)
+                        }
+                        Text(
+                            if (shown == 0) "OFF" else "$shown°C",
+                            color = if (pending != null) NopalWarning else NopalTextPrimary,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.widthIn(min = 44.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        )
+                        TargetStepButton(Icons.Default.Add, "Subir objetivo de $label", shown < maxTarget) {
+                            pending = (shown + TARGET_STEP_C).coerceAtMost(maxTarget)
+                        }
+                    }
+                } else {
+                    Text(
+                        temp?.target?.let { "${it.roundToInt()}°C" } ?: "--",
+                        color = NopalTextPrimary,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+        }
+        LinearProgressIndicator(
+            progress = { ((current ?: 0.0) / maxC).toFloat().coerceIn(0f, 1f) },
+            modifier = Modifier.fillMaxWidth().height(5.dp).clip(CircleShape),
+            color = tone,
+            trackColor = NopalSurfaceElevated,
+        )
     }
 }
 
 @Composable
-private fun TemperatureRow(label: String, icon: ImageVector, temp: TempPair?, maxC: Double) {
-    val current = temp?.current
-    val tone = phaseColor(thermalPhaseOf(temp))
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Icon(icon, null, tint = tone, modifier = Modifier.size(26.dp))
-        Column(modifier = Modifier.width(78.dp)) {
-            Text(label, color = NopalTextSecondary, style = MaterialTheme.typography.labelSmall)
-            Text(
-                current?.let { "${it.roundToInt()}°C" } ?: "--°C",
-                color = tone,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("OBJETIVO", color = NopalTextSecondary, style = MaterialTheme.typography.labelSmall)
-                Text(
-                    temp?.target?.let { "${it.roundToInt()}°C" } ?: "--",
-                    color = NopalTextPrimary,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-            LinearProgressIndicator(
-                progress = { ((current ?: 0.0) / maxC).toFloat().coerceIn(0f, 1f) },
-                modifier = Modifier.fillMaxWidth().height(5.dp).clip(CircleShape),
-                color = tone,
-                trackColor = NopalSurfaceElevated,
-            )
-        }
-    }
+private fun TargetStepButton(icon: ImageVector, description: String, enabled: Boolean, onClick: () -> Unit) {
+    FilledTonalButton(
+        onClick = onClick,
+        enabled = enabled,
+        contentPadding = PaddingValues(0.dp),
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.size(34.dp),
+    ) { Icon(icon, description, modifier = Modifier.size(18.dp)) }
 }
 
 @Composable
@@ -840,7 +936,25 @@ private fun MovementPanel(
     var step by remember { mutableStateOf(10.0) }
     val canMove = machine.supports("move") && !printing
     val canHome = machine.supports("home") && !printing
+    val jobActive = printing || machine.status.state == "paused"
+    val canDisableMotors = machine.supports("disable_motors") && !jobActive
+    var confirmMotorsOff by remember { mutableStateOf(false) }
     val pos = machine.status.position
+
+    if (confirmMotorsOff) {
+        AlertDialog(
+            onDismissRequest = { confirmMotorsOff = false },
+            title = { Text("¿Apagar motores?") },
+            text = { Text("Los ejes quedan libres y se pierde la posición: hará falta hacer home otra vez.") },
+            confirmButton = {
+                Button(onClick = {
+                    confirmMotorsOff = false
+                    viewModel.disableMotors()
+                }) { Text("APAGAR MOTORES") }
+            },
+            dismissButton = { TextButton(onClick = { confirmMotorsOff = false }) { Text("NO APAGAR") } },
+        )
+    }
 
     Panel(
         "MOVIMIENTO",
@@ -882,6 +996,17 @@ private fun MovementPanel(
                     contentPadding = PaddingValues(horizontal = 2.dp),
                     modifier = Modifier.weight(1f).height(32.dp),
                 ) { Text("HOME $axis", fontSize = 11.sp) }
+            }
+        }
+        if (machine.actions.contains("disable_motors")) {
+            OutlinedButton(
+                onClick = { confirmMotorsOff = true },
+                enabled = canDisableMotors,
+                contentPadding = PaddingValues(horizontal = 4.dp),
+                modifier = Modifier.fillMaxWidth().height(34.dp),
+            ) {
+                Icon(Icons.Default.PowerSettingsNew, null, modifier = Modifier.size(16.dp))
+                Text(" APAGAR MOTORES", fontSize = 11.sp)
             }
         }
         if (printing) {

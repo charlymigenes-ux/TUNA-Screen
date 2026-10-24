@@ -30,9 +30,14 @@ data class Position(
 data class JobProgress(
     val filename: String? = null,
     val percent: Int? = null,
-    @kotlinx.serialization.SerialName("elapsed_s") val elapsedS: Long? = null,
-    @kotlinx.serialization.SerialName("remaining_s") val remainingS: Long? = null,
-)
+    // El servidor puede mandar segundos con decimales (p. ej. 18404.52): se
+    // aceptan como Double y se exponen como segundos enteros.
+    @kotlinx.serialization.SerialName("elapsed_s") private val elapsedRaw: Double? = null,
+    @kotlinx.serialization.SerialName("remaining_s") private val remainingRaw: Double? = null,
+) {
+    val elapsedS: Long? get() = elapsedRaw?.toLong()
+    val remainingS: Long? get() = remainingRaw?.toLong()
+}
 
 /** Vocabulario normalizado por tunascreen_service.py: idle/printing/paused/
  * completed/cancelled/error/offline/unknown -- una sola marca de estado para
@@ -49,6 +54,7 @@ data class MachineStatus(
     val hotend: TempPair? = null,
     val bed: TempPair? = null,
     val position: Position? = null,
+    @kotlinx.serialization.SerialName("homed_axes") val homedAxes: String? = null,
     val feed: Double? = null,
     val speed: Double? = null,
     @kotlinx.serialization.SerialName("laser_power") val laserPower: Double? = null,

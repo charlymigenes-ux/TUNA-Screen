@@ -63,6 +63,12 @@ data class MachineMacro(
     val description: String = "",
 )
 
+/** Estado de los límites de carrera por eje: "open" o "TRIGGERED". */
+@Serializable
+data class EndstopsResponse(
+    val endstops: Map<String, String> = emptyMap(),
+)
+
 @Serializable
 data class MacrosResponse(
     val macros: List<MachineMacro> = emptyList(),
